@@ -91,6 +91,19 @@ docker run -d \
 
 На машине с LinuxGSM запустите бота от того же Linux-пользователя, который управляет игрой. Не используйте root. SSH-сервис, SSH-ключи и открытые входящие порты не нужны. Скрипт запускается как локальный процесс с правами пользователя бота.
 
+Пример `servers.json` для выполнения без SSH на самой машине с ботом:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "CS2 на этой машине",
+    "transport": "local",
+    "path": "/home/steam/cs2server"
+  }
+]
+```
+
 1. Скопируйте `servers.local.example.json` в `servers.json`, укажите настоящий абсолютный путь к игровому скрипту.
 2. В `.env` вместе с токеном и администратором укажите:
 
@@ -120,6 +133,51 @@ set +a
 `local` означает машину, на которой работает процесс Python. В контейнере это был бы контейнер, поэтому бот отклоняет локальное выполнение внутри Docker. Простого монтирования игрового каталога недостаточно для управления процессами и tmux на хосте. Используйте запуск Python на хосте.
 
 ## Серверы в локальной сети из JSON
+
+Пример `config/servers.json` для Docker: первый сервер использует SSH-пароль, второй — приватный ключ. Оставьте только нужные объекты и замените IP, пользователей, пути и отпечатки:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "CS2 в локальной сети",
+    "transport": "ssh",
+    "host": "192.168.1.10",
+    "port": 22,
+    "user": "steam",
+    "path": "/home/steam/cs2server",
+    "fingerprint": "SHA256:REPLACE_WITH_VERIFIED_HOST_KEY_FINGERPRINT",
+    "auth": "password",
+    "password_env": "LAN_SSH_PASSWORD"
+  },
+  {
+    "id": 2,
+    "name": "Minecraft в локальной сети",
+    "transport": "ssh",
+    "host": "192.168.1.11",
+    "port": 22,
+    "user": "minecraft",
+    "path": "/home/minecraft/mcserver",
+    "fingerprint": "SHA256:REPLACE_WITH_VERIFIED_HOST_KEY_FINGERPRINT",
+    "auth": "key",
+    "key_file": "keys/minecraft_ed25519",
+    "passphrase_env": "MC_KEY_PASSPHRASE"
+  }
+]
+```
+
+Соответствующие дополнительные переменные в `.env`:
+
+```dotenv
+LAN_SSH_PASSWORD=замените_паролем_SSH
+MC_KEY_PASSPHRASE=замените_паролем_приватного_ключа
+```
+
+Если ключ без пароля, удалите `passphrase_env` из второго объекта и `MC_KEY_PASSPHRASE` из `.env`. Приватный ключ в этом примере находится на хосте в `config/keys/minecraft_ed25519`; путь `keys/minecraft_ed25519` считается относительно JSON-файла. Поле `path` указывает на скрипт LinuxGSM **на удалённом SSH-сервере**.
+
+`fingerprint` — SHA256-отпечаток **ключа SSH-хоста**, а не загружаемого приватного ключа пользователя. Получите его через доверенный доступ к серверу, например: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256`. Для другого типа ключа используйте соответствующий `.pub`. Скопируйте значение вида `SHA256:...` целиком вместо заглушки в JSON; с заглушкой бот не запустится.
+
+Для Docker используйте `SERVERS_FILE=/app/config/servers.json` с подключением `./config:/app/config:ro`, как в примере `docker run` выше. При запуске Python на хосте можно сохранить тот же JSON в `./config/servers.json` и задать `SERVERS_FILE=./config/servers.json`.
 
 Используйте `servers.lan.example.json` как шаблон: укажите IP в LAN, пользователя, путь и проверенный SSH-отпечаток. Для пароля задайте `password_env` — имя переменной окружения с паролем, например `LAN_SSH_PASSWORD`. Для ключа укажите `auth: "key"`, `key_file` и при необходимости `passphrase_env`. Относительный `key_file` считается от каталога JSON. Сами SSH-секреты в JSON записывать не нужно.
 
