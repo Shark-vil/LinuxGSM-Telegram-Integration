@@ -6,3 +6,5 @@ __pycache__/
 
 servers.json
 keys/
+
+.docker-check/
