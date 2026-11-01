@@ -1,0 +1,26 @@
+﻿[
+  {
+    "id": 1,
+    "name": "CS2 в локальной сети",
+    "transport": "ssh",
+    "host": "192.168.1.10",
+    "port": 22,
+    "user": "steam",
+    "path": "/home/steam/cs2server",
+    "fingerprint": "SHA256:REPLACE_WITH_VERIFIED_HOST_KEY_FINGERPRINT",
+    "auth": "password",
+    "password_env": "LAN_SSH_PASSWORD"
+  },
+  {
+    "id": 2,
+    "name": "Minecraft в локальной сети",
+    "transport": "ssh",
+    "host": "192.168.1.11",
+    "port": 22,
+    "user": "minecraft",
+    "path": "/home/minecraft/mcserver",
+    "fingerprint": "SHA256:REPLACE_WITH_VERIFIED_HOST_KEY_FINGERPRINT",
+    "auth": "key",
+    "key_file": "keys/minecraft_ed25519"
+  }
+]

@@ -1,0 +1,8 @@
+﻿[
+  {
+    "id": 1,
+    "name": "CS2 на этой машине",
+    "transport": "local",
+    "path": "/home/steam/cs2server"
+  }
+]
