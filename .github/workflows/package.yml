@@ -29,7 +29,9 @@ jobs:
           python -m pip check
           python -m unittest -v
       - name: Validate Compose
-        run: docker compose --env-file .env.example config --no-env-resolution --quiet
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env config --quiet
       - name: Create source package
         run: |
           mkdir -p dist
