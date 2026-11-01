@@ -2,15 +2,57 @@
 
 Python-бот для управления уже установленными LinuxGSM-серверами по SSH или напрямую на Linux-хосте без SSH. Исходный каталог `LinuxGSM/` не изменён и в Docker-образ не включается.
 
-## Готовый Docker-образ
+## Запуск готового Docker-образа
 
-Скачайте последнюю версию одной командой:
+Команды ниже предназначены для Bash на Linux. Клонировать репозиторий и устанавливать Python не нужно.
 
-```bash
-docker pull ghcr.io/shark-vil/linuxgsm-telegram-integration:latest
+Создайте отдельный каталог для бота и файл `.env` внутри него:
+
+```dotenv
+BOT_TOKEN=123456789:ТОКЕН_ОТ_BOTFATHER
+BOT_ADMIN=123456789
 ```
 
-Команда скачивает образ; для запуска бота потребуются `BOT_TOKEN`, `BOT_ADMIN` и постоянный том `/app/data`.
+Укажите свой токен и Telegram ID администратора (либо `@username`). Подготовьте каталог данных; контейнер работает с UID/GID `10001:10001`:
+
+```bash
+mkdir -p data
+sudo chown 10001:10001 data
+sudo chmod 700 data
+chmod 600 .env
+```
+
+Из этого каталога запустите бота **одной строкой**:
+
+```bash
+docker run -d --name linuxgsm-telegram-bot --restart unless-stopped --pull always --env-file .env --mount type=bind,src="$(pwd)/data",dst=/app/data --read-only --tmpfs /tmp:size=32m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true ghcr.io/shark-vil/linuxgsm-telegram-integration:latest
+```
+
+Docker автоматически скачает образ. Откройте личный чат с ботом и отправьте `/start`; SSH-серверы можно добавлять через кнопки. Входящие порты и `-p` не нужны.
+
+Файл `.env` остаётся на хосте и передаёт переменные окружения. Каталог `./data` хранит SQLite и `secret.key` вне контейнера, поэтому пользователи, серверы и SSH-реквизиты сохраняются при его пересоздании. Для резервной копии остановите контейнер и скопируйте **весь** `data`, включая ключ шифрования.
+
+Логи: `docker logs -f linuxgsm-telegram-bot`. Остановка: `docker stop linuxgsm-telegram-bot`. Для обновления остановите и удалите контейнер (`docker rm linuxgsm-telegram-bot` после остановки), затем повторите строку запуска из того же каталога. Файлы в `./data` останутся на хосте.
+
+### Готовый JSON и SSH-ключи с хоста
+
+Если серверы заданы заранее, создайте рядом с `.env` каталог `config`, поместите JSON в `config/servers.json`, а приватные ключи при необходимости в `config/keys/`. Формат JSON описан ниже в разделе «Серверы в локальной сети из JSON» и в `servers.lan.example.json`. В JSON используйте `transport: "ssh"`, а относительный путь к ключу указывайте как `keys/minecraft_ed25519`. Пароль SSH или ключа задавайте в `.env` через переменную, указанную в `password_env` или `passphrase_env`.
+
+Дайте группе контейнера доступ к конфигурации и ключам (команды для варианта с ключами):
+
+```bash
+sudo chgrp -R 10001 config
+chmod 750 config config/keys
+chmod 640 config/servers.json config/keys/*
+```
+
+Вместо предыдущей строки запуска используйте эту, с дополнительным подключением конфигурации **только для чтения**:
+
+```bash
+docker run -d --name linuxgsm-telegram-bot --restart unless-stopped --pull always --env-file .env -e SERVERS_FILE=/app/config/servers.json -e CONFIG_ONLY=true --mount type=bind,src="$(pwd)/data",dst=/app/data --mount type=bind,src="$(pwd)/config",dst=/app/config,readonly --read-only --tmpfs /tmp:size=32m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true ghcr.io/shark-vil/linuxgsm-telegram-integration:latest
+```
+
+`CONFIG_ONLY=true` оставляет только серверы из JSON и отключает их добавление через чат. Для смешанного режима укажите `CONFIG_ONLY=false`. После изменения JSON, ключей или `.env` пересоздайте контейнер той же командой. Режим без SSH (`local`) требует запуска Python непосредственно на игровом Linux-хосте, как описано ниже.
 
 ## Запуск
 
